@@ -55,7 +55,7 @@ final class FloatingWindowController: NSWindowController {
             // Re-position to top-right on first show or after being hidden
             if let screen = NSScreen.main {
                 let x = screen.visibleFrame.maxX - window.frame.width - 16
-                let y = screen.visibleFrame.maxY - window.frame.height - 16
+                let y = screen.visibleFrame.maxY - window.frame.height - 60
                 window.setFrameOrigin(NSPoint(x: x, y: y))
             }
         }
