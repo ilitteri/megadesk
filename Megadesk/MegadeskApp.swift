@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct MegadeskV2App: App {
+struct MegadeskApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
