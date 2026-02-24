@@ -4,7 +4,6 @@ set -euo pipefail
 PROJECT="/Users/saugon/lambda/megadesk-v2/Megadesk.xcodeproj"
 DERIVED="/tmp/megadesk-build"
 APP_PATH="$DERIVED/Build/Products/Release/Megadesk.app"
-DMG_OUT="/Users/saugon/lambda/megadesk-v2/megadesk.dmg"
 TMP_DMG="/tmp/megadesk-tmp.dmg"
 VOLUME="Megadesk"
 
@@ -18,6 +17,9 @@ xcodebuild \
   CODE_SIGN_IDENTITY="-" \
   CODE_SIGNING_REQUIRED=NO \
   | grep -E "^(error:|warning: |BUILD)"
+
+VERSION=$(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString)
+DMG_OUT="/Users/saugon/lambda/megadesk-v2/megadesk-$VERSION.dmg"
 
 echo "→ Creating DMG..."
 rm -f "$TMP_DMG" "$DMG_OUT"
@@ -56,6 +58,5 @@ hdiutil detach "$MOUNT" -force -quiet
 hdiutil convert "$TMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_OUT" -quiet
 rm -f "$TMP_DMG"
 
-VERSION=$(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString)
 SIZE=$(du -sh "$DMG_OUT" | cut -f1)
-echo "✓ megadesk.dmg v$VERSION ($SIZE)"
+echo "✓ megadesk-$VERSION.dmg ($SIZE)"
