@@ -26,16 +26,12 @@ struct Session: Identifiable, Codable {
         Date().timeIntervalSince1970 - stateSince
     }
 
-    /// Last hook was PreToolUse and nothing has updated in >4s — Claude is almost
-    /// certainly waiting for the user to approve/deny a command confirmation.
+    /// Last hook was PreToolUse for a non-Bash tool and nothing has updated in >4s —
+    /// Claude is almost certainly waiting for the user to approve/deny a confirmation.
+    /// Bash is excluded because it can run legitimately for minutes.
     var needsConfirmation: Bool {
         guard isWorking && lastEvent == "PreToolUse" else { return false }
         return Date().timeIntervalSince1970 - lastUpdated > 4
-    }
-
-    /// Session shows "working" but hasn't had a hook update in >30s — likely interrupted.
-    var isInterrupted: Bool {
-        isWorking && !needsConfirmation && Date().timeIntervalSince1970 - lastUpdated > 30
     }
 
     /// Session has been in "waiting" state for >5 minutes — effectively idle.

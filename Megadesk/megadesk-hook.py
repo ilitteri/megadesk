@@ -17,6 +17,7 @@ EVENT_STATE_MAP = {
     "PostToolUse": "working",
     "UserPromptSubmit": "working",
     "Stop": "waiting",
+    "StopInterrupted": "waiting",
     "SessionStart": "working",
 }
 
@@ -43,6 +44,13 @@ def main():
     new_state = EVENT_STATE_MAP.get(hook_event)
     if new_state is None:
         return
+
+    # On Stop: if last_assistant_message starts with "interrupted", tag as StopInterrupted
+    # so the widget can detect cancellations instantly without waiting for a timeout.
+    if hook_event == "Stop":
+        last_msg = data.get("last_assistant_message", "") or ""
+        if last_msg.lstrip().lower().startswith("interrupted"):
+            hook_event = "StopInterrupted"
 
     cwd = data.get("cwd", os.getcwd())
     tool_name = data.get("tool_name") or data.get("tool", "") or ""
