@@ -38,6 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.delegate = self
         menu.addItem(withTitle: "Hide Widget", action: #selector(toggleWidget), keyEquivalent: "")
             .target = self
+        let compactItem = NSMenuItem(title: "Compact Mode", action: #selector(toggleCompact), keyEquivalent: "")
+        compactItem.target = self
+        menu.addItem(compactItem)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Megadesk", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem?.menu = menu
@@ -45,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleWidget() {
         windowController?.toggle()
+    }
+
+    @objc private func toggleCompact() {
+        windowController?.toggleCompact()
     }
 }
 
@@ -54,6 +61,7 @@ extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         let isVisible = windowController?.isWidgetVisible ?? false
         menu.item(at: 0)?.title = isVisible ? "Hide Widget" : "Show Widget"
+        menu.item(at: 1)?.state = (windowController?.isCompact ?? false) ? .on : .off
     }
 }
 

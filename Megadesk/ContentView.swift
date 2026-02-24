@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var store = StatusStore()
+    @AppStorage("megadesk.compact") private var isCompact = false
 
     var body: some View {
         VStack(spacing: 4) {
@@ -9,15 +10,23 @@ struct ContentView: View {
                 emptyState
             } else {
                 ForEach(store.sessions) { session in
-                    SessionCardView(
-                        session: session,
-                        tick: store.tick,
-                        onFocus: { store.focusTerminal(session: session) },
-                        onDismiss: { store.dismiss(session: session) }
-                    )
+                    if isCompact {
+                        CompactSessionCardView(
+                            session: session,
+                            tick: store.tick,
+                            onFocus: { store.focusTerminal(session: session) }
+                        )
+                    } else {
+                        SessionCardView(
+                            session: session,
+                            tick: store.tick,
+                            onFocus: { store.focusTerminal(session: session) },
+                            onDismiss: { store.dismiss(session: session) }
+                        )
+                    }
                 }
             }
-            if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            if !isCompact, let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                 let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
                 Text("v\(version)  build \(build)")
                     .font(.system(size: 10, design: .monospaced))
@@ -27,7 +36,7 @@ struct ContentView: View {
             }
         }
         .padding(8)
-        .frame(minWidth: 280, maxWidth: 280)
+        .frame(minWidth: isCompact ? 78 : 280, maxWidth: isCompact ? 78 : 280)
     }
 
     private var emptyState: some View {
@@ -38,3 +47,4 @@ struct ContentView: View {
             .padding(.vertical, 16)
     }
 }
+
