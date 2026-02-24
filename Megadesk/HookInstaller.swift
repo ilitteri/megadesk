@@ -19,38 +19,10 @@ enum HookInstaller {
         }
     }
 
-    /// Shows a prompt and installs if the user agrees. Call on first launch.
+    /// Installs the hook silently (no dialogs). Throws on failure.
     /// Always updates the hook script; only patches settings.json if not yet registered.
-    static func installIfNeeded() {
-        let alreadyRegistered = isInstalled()
-
-        if !alreadyRegistered {
-            let alert = NSAlert()
-            alert.messageText = "Set up Megadesk"
-            alert.informativeText = "Megadesk needs to add hooks to Claude Code to track session activity.\n\nThis will modify ~/.claude/settings.json."
-            alert.addButton(withTitle: "Install")
-            alert.addButton(withTitle: "Not Now")
-            alert.alertStyle = .informational
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-        }
-
-        do {
-            try install(patchSettings: !alreadyRegistered)
-            if !alreadyRegistered {
-                let done = NSAlert()
-                done.messageText = "Megadesk is ready"
-                done.informativeText = "Hooks installed. Open a new Claude Code session to start tracking."
-                done.addButton(withTitle: "OK")
-                done.runModal()
-            }
-        } catch {
-            let err = NSAlert()
-            err.messageText = "Installation failed"
-            err.informativeText = error.localizedDescription
-            err.alertStyle = .critical
-            err.addButton(withTitle: "OK")
-            err.runModal()
-        }
+    static func install() throws {
+        try install(patchSettings: !isInstalled())
     }
 
     // MARK: - Private

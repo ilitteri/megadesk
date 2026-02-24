@@ -4,20 +4,24 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: FloatingWindowController?
     private var statusItem: NSStatusItem?
+    private var onboardingController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let contentView = ContentView()
         windowController = FloatingWindowController(contentView: contentView)
         windowController?.window?.delegate = self
-        windowController?.show()
         setupMenuBar()
-        primeAutomationPermission()
-        HookInstaller.installIfNeeded()
-    }
 
-    private func primeAutomationPermission() {
-        let script = "tell application \"iTerm2\" to get name"
-        NSAppleScript(source: script)?.executeAndReturnError(nil)
+        if UserDefaults.standard.bool(forKey: "megadesk.onboardingComplete") {
+            windowController?.show()
+        } else {
+            onboardingController = OnboardingWindowController {
+                self.onboardingController = nil
+                self.windowController?.show()
+            }
+            onboardingController?.showWindow(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
