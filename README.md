@@ -6,6 +6,12 @@
 
 **Claude Code session monitor for iTerm2.**
 
+<p align="center">
+  <a href="https://github.com/saugon/megadesk/releases/latest/download/Megadesk.dmg">
+    <img src="https://img.shields.io/badge/Download-Megadesk.dmg-blue?style=for-the-badge&logo=apple" alt="Download">
+  </a>
+</p>
+
 Megadesk is a macOS menu-bar widget that shows all your active Claude Code sessions at a glance. Each session card displays its current state, how long it's been in that state, and lets you jump directly to the right iTerm2 tab with a single click.
 
 ---
