@@ -44,7 +44,15 @@ final class StatusStore {
         // $ITERM_SESSION_ID wasn't available (e.g. tmux without the env var, or non-iTerm2
         // terminal). We can't focus them but they're not "not found" either.
         guard session.itermSessionId != session.sessionId else { return true }
-        return TerminalFocuser.focusiTerm2(sessionId: session.itermSessionId)
+
+        let found = TerminalFocuser.focusiTerm2(sessionId: session.itermSessionId)
+
+        // For tmux sessions the stored iterm_session_id is "{UUID}:{tmux_pane}".
+        // If focus fails it means the *original* iTerm2 tab was closed (e.g. after
+        // detach/reattach), but Claude is still running inside tmux — don't delete the card.
+        if !found && session.itermSessionId.contains(":") { return true }
+
+        return found
     }
 
     func displayName(for session: Session) -> String {
