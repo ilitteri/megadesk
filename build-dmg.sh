@@ -25,38 +25,43 @@ echo "→ Creating DMG..."
 rm -f "$TMP_DMG" "$DMG_OUT"
 hdiutil create -size 20m -fs HFS+ -volname "$VOLUME" "$TMP_DMG" -quiet
 
-MOUNT="/tmp/megadesk-mount"
+MOUNT="/tmp/Megadesk"
 mkdir -p "$MOUNT"
-hdiutil attach "$TMP_DMG" -readwrite -noverify -noautoopen -mountpoint "$MOUNT" -quiet
+hdiutil attach "$TMP_DMG" -readwrite -noverify -mountpoint "$MOUNT" -quiet
 echo "  Mounted at $MOUNT"
 
 cp -r "$APP_PATH" "$MOUNT/"
 ln -s /Applications "$MOUNT/Applications"
 sync
+
+# Wait for Finder to discover the newly mounted volume
 sleep 3
 
 osascript <<APPLESCRIPT
 tell application "Finder"
-  tell disk "$VOLUME"
-    open
-    set current view of container window to icon view
-    set toolbar visible of container window to false
-    set statusbar visible of container window to false
-    set bounds of container window to {200, 100, 680, 400}
-    set viewOptions to the icon view options of container window
-    set arrangement of viewOptions to not arranged
-    set icon size of viewOptions to 100
-    delay 1
-    set position of item "Megadesk" of container window to {130, 145}
-    set position of item "Applications" of container window to {350, 145}
-    update without registering applications
-    delay 2
-    close
+    tell disk "Megadesk"
+      open
+      set current view of container window to icon view
+      set toolbar visible of container window to false
+      set statusbar visible of container window to false
+      set bounds of container window to {100, 100, 700, 520}
+      set viewOptions to the icon view options of container window
+      set arrangement of viewOptions to not arranged
+      set icon size of viewOptions to 160
+      delay 3
+      set position of item "Megadesk" of container window to {150, 210}
+      set position of item "Applications" of container window to {450, 210}
+      update without registering applications
+      delay 5
+      close
+    end tell
   end tell
-end tell
 APPLESCRIPT
 
-hdiutil detach "$MOUNT" -force -quiet
+# Give Finder time to flush .DS_Store before unmounting
+sleep 5
+sync
+hdiutil detach "$MOUNT" -quiet || hdiutil detach "$MOUNT" -force -quiet
 hdiutil convert "$TMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_OUT" -quiet
 rm -f "$TMP_DMG"
 
