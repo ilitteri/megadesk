@@ -20,6 +20,7 @@ extension Notification.Name {
 final class FloatingWindowController: NSWindowController {
 
     private var titleLabel: NSTextField?
+    private var suppressPositionSave = false
 
     convenience init(contentView: some View) {
         let initialCompact = UserDefaults.standard.bool(forKey: "megadesk.compact")
@@ -75,6 +76,14 @@ final class FloatingWindowController: NSWindowController {
         ) { [weak self] _ in
             self?.handleWindowResize()
         }
+
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: panel,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleWindowMove()
+        }
     }
 
     // MARK: - Title bar controls
@@ -117,6 +126,23 @@ final class FloatingWindowController: NSWindowController {
         hide()
     }
 
+    private func handleWindowMove() {
+        guard !suppressPositionSave, let panel = window else { return }
+        UserDefaults.standard.set(Double(panel.frame.origin.x), forKey: "megadesk.windowX")
+        UserDefaults.standard.set(Double(panel.frame.origin.y), forKey: "megadesk.windowY")
+    }
+
+    /// Returns the last user-dragged origin if it's still on a visible screen, otherwise nil.
+    private func savedOrigin(for window: NSWindow) -> NSPoint? {
+        guard UserDefaults.standard.object(forKey: "megadesk.windowX") != nil else { return nil }
+        let x = UserDefaults.standard.double(forKey: "megadesk.windowX")
+        let y = UserDefaults.standard.double(forKey: "megadesk.windowY")
+        let origin = NSPoint(x: x, y: y)
+        let rect = NSRect(origin: origin, size: window.frame.size)
+        guard NSScreen.screens.contains(where: { $0.visibleFrame.intersects(rect) }) else { return nil }
+        return origin
+    }
+
     private func handleWindowResize() {
         guard let panel = window else { return }
         // Re-center title label
@@ -153,12 +179,14 @@ final class FloatingWindowController: NSWindowController {
             panel.alphaValue = 1.0   // reset para show()
 
             let width: CGFloat = newValue ? 78 : 280
+            self.suppressPositionSave = true
             if let screen = NSScreen.main {
                 let x = screen.visibleFrame.maxX - width - 16
                 let y = screen.visibleFrame.maxY - panel.frame.height - 60
                 panel.setFrame(NSRect(x: x, y: y, width: width, height: panel.frame.height),
                                display: true, animate: false)
             }
+            self.suppressPositionSave = false
             self.titleLabel?.stringValue = newValue ? "md" : "megadesk"
             self.titleLabel?.sizeToFit()
             if let label = self.titleLabel, let superview = label.superview {
@@ -172,11 +200,20 @@ final class FloatingWindowController: NSWindowController {
     func show() {
         guard let window = window else { return }
         if !window.isVisible {
-            if let screen = NSScreen.main {
-                let x = screen.visibleFrame.maxX - window.frame.width - 16
-                let y = screen.visibleFrame.maxY - window.frame.height - 60
-                window.setFrameOrigin(NSPoint(x: x, y: y))
+            let origin: NSPoint
+            if let saved = savedOrigin(for: window) {
+                origin = saved
+            } else if let screen = NSScreen.main {
+                origin = NSPoint(
+                    x: screen.visibleFrame.maxX - window.frame.width - 16,
+                    y: screen.visibleFrame.maxY - window.frame.height - 60
+                )
+            } else {
+                origin = .zero
             }
+            suppressPositionSave = true
+            window.setFrameOrigin(origin)
+            suppressPositionSave = false
             window.alphaValue = 0
             window.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { ctx in
