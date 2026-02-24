@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingController: OnboardingWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Terminate any previously running instance before setting up.
+        if let bundleID = Bundle.main.bundleIdentifier {
+            NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                .filter { $0 != NSRunningApplication.current }
+                .forEach { $0.terminate() }
+        }
+
         let contentView = ContentView()
         windowController = FloatingWindowController(contentView: contentView)
         windowController?.window?.delegate = self
