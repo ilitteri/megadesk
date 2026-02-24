@@ -6,6 +6,14 @@ Megadesk is a macOS menu-bar widget that shows all your active Claude Code sessi
 
 ---
 
+<p align="center">
+  <img src="docs/widget.png" width="320" alt="Megadesk widget showing sessions and pull requests">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/help.png" width="560" alt="Megadesk help panel with session states and hotkeys">
+</p>
+
+---
+
 ## Requirements
 
 - macOS 14 or later
