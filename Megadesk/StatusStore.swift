@@ -1,11 +1,12 @@
 import Foundation
+import AppKit
 import Observation
 
 @Observable
 final class StatusStore {
     var sessions: [Session] = []
     var tick: Int = 0  // increments every second to force time re-renders
-    var customNames: [String: String] = [:]  // cwd → custom display name
+    var customNames: [String: String] = [:]  // itermSessionId → custom display name
 
     // MARK: PR Tracking
     var trackedPRs: [TrackedPR] = []
@@ -42,19 +43,19 @@ final class StatusStore {
     }
 
     func displayName(for session: Session) -> String {
-        customNames[session.cwd] ?? session.projectName
+        customNames[session.itermSessionId] ?? session.projectName
     }
 
     func hasCustomName(for session: Session) -> Bool {
-        customNames[session.cwd] != nil
+        customNames[session.itermSessionId] != nil
     }
 
     func setCustomName(session: Session, name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty || trimmed == session.projectName {
-            customNames.removeValue(forKey: session.cwd)
+            customNames.removeValue(forKey: session.itermSessionId)
         } else {
-            customNames[session.cwd] = trimmed
+            customNames[session.itermSessionId] = trimmed
         }
         saveCustomNames()
     }
@@ -70,7 +71,7 @@ final class StatusStore {
     // MARK: - Private
 
     private func loadCustomNames() {
-        guard let data = UserDefaults.standard.data(forKey: "megadesk.customNames"),
+        guard let data = UserDefaults.standard.data(forKey: "megadesk.customNamesBySession"),
               let dict = try? JSONDecoder().decode([String: String].self, from: data)
         else { return }
         customNames = dict
@@ -78,7 +79,7 @@ final class StatusStore {
 
     private func saveCustomNames() {
         if let data = try? JSONEncoder().encode(customNames) {
-            UserDefaults.standard.set(data, forKey: "megadesk.customNames")
+            UserDefaults.standard.set(data, forKey: "megadesk.customNamesBySession")
         }
     }
 
@@ -159,7 +160,83 @@ final class StatusStore {
             // Reload every tick as a fallback — small JSON files, negligible cost.
             // The file watcher handles instant updates; this catches any missed events.
             self?.loadSessions()
+            // Every 10 seconds, ask iTerm2 which tabs are still alive and remove orphaned cards.
+            if (self?.tick ?? 0) % 10 == 0 {
+                self?.checkOrphanedSessions()
+            }
         }
+    }
+
+    /// Queries iTerm2 for all active session IDs and removes session files whose
+    /// iTerm2 tab no longer exists (e.g. the user closed the terminal tab).
+    private func checkOrphanedSessions() {
+        let script = """
+        tell application "iTerm2"
+            set ids to {}
+            repeat with w in windows
+                repeat with t in tabs of w
+                    repeat with s in sessions of t
+                        set end of ids to (unique id of s)
+                    end repeat
+                end repeat
+            end repeat
+            return ids
+        end tell
+        """
+
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let appleScript = NSAppleScript(source: script)
+            var error: NSDictionary?
+            guard let result = appleScript?.executeAndReturnError(&error) else { return }
+
+            var activeIds: Set<String> = []
+            let count = result.numberOfItems
+            if count > 0 {
+                for i in 1...count {
+                    if let val = result.atIndex(i)?.stringValue {
+                        activeIds.insert(val)
+                    }
+                }
+            }
+
+            // If we got no IDs back, play it safe — iTerm2 might have no windows open
+            // or returned an unexpected result. Don't wipe everything.
+            guard !activeIds.isEmpty else { return }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                // Collect iTerm session IDs that are no longer present in iTerm2.
+                // Skip fallback sessions (itermSessionId == sessionId) — those aren't iTerm2 sessions.
+                let orphanedItermIds = self.sessions
+                    .filter { s in
+                        s.itermSessionId != s.sessionId &&
+                        !activeIds.contains(s.itermSessionId)
+                    }
+                    .map(\.itermSessionId)
+
+                for itermId in orphanedItermIds {
+                    self.removeSessionFiles(withItermId: itermId)
+                }
+            }
+        }
+    }
+
+    /// Deletes all session JSON files that belong to the given iTerm2 session ID,
+    /// then reloads the session list.
+    private func removeSessionFiles(withItermId itermId: String) {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: sessionsURL, includingPropertiesForKeys: nil) else { return }
+        let decoder = JSONDecoder()
+        var removed = false
+        for file in files where file.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: file),
+                  let session = try? decoder.decode(Session.self, from: data),
+                  session.itermSessionId == itermId
+            else { continue }
+            try? fm.removeItem(at: file)
+            removed = true
+        }
+        if removed { loadSessions() }
     }
 
     // MARK: - PR Tracking
