@@ -120,6 +120,7 @@ final class StatusStore {
             let p0 = urgencyPriority($0)
             let p1 = urgencyPriority($1)
             if p0 != p1 { return p0 < p1 }
+            if p0 == 3 { return $0.timeInState < $1.timeInState }
             return $0.projectName < $1.projectName
         }
     }

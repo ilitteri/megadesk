@@ -117,15 +117,14 @@ struct PRCardView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    if trackedPR.fetchState == .loading {
-                        ProgressView()
-                            .scaleEffect(0.45)
-                            .frame(width: 10, height: 10)
-                    } else {
-                        Text(relativeDate(pr.updatedAt))
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.35))
-                    }
+                    Text(relativeDate(pr.updatedAt))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(trackedPR.fetchState == .loading ? .clear : .white.opacity(0.35))
+                        .overlay {
+                            if trackedPR.fetchState == .loading {
+                                ProgressView().scaleEffect(0.45)
+                            }
+                        }
 
                     HStack(spacing: 3) {
                         if pr.hasConflicts { badge("conflict", color: .red) }
