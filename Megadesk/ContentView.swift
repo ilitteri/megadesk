@@ -55,11 +55,16 @@ struct ContentView: View {
 
             if !isCompact, let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                 let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-                Text("v\(version)  build \(build)")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.2))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.top, 2)
+                HStack {
+                    Text("⌘⇧M to hide")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.2))
+                    Spacer()
+                    Text("v\(version)  build \(build)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.2))
+                }
+                .padding(.top, 2)
             }
         }
         .padding(8)
