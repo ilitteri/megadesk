@@ -10,7 +10,6 @@ private struct PointingHandCursor: NSViewRepresentable {
     final class CursorView: NSView {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            // Ensure tracking areas are registered as soon as the view enters a window
             updateTrackingAreas()
         }
         override func updateTrackingAreas() {
@@ -26,7 +25,6 @@ private struct PointingHandCursor: NSViewRepresentable {
         override func cursorUpdate(with event: NSEvent) {
             NSCursor.pointingHand.set()
         }
-        // Return nil so all mouse events fall through to SwiftUI views below
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 }
@@ -34,72 +32,138 @@ private struct PointingHandCursor: NSViewRepresentable {
 struct SessionCardView: View {
     let session: Session
     let tick: Int
+    let displayName: String
+    let hasCustomName: Bool
     let onFocus: () -> Void
-    let onDismiss: () -> Void
+    let onRename: (String) -> Void
+    let onEditStart: () -> Void
+    let onEditEnd: () -> Void
 
     @State private var isHovered = false
+    @State private var isEditing = false
+    @State private var editText = ""
+    @FocusState private var fieldFocused: Bool
 
     var body: some View {
-        // Outer Button handles focus tap. Inner Button handles dismiss.
-        // SwiftUI nested buttons: innermost button wins — no conflict.
-        Button(action: onFocus) {
-            HStack(alignment: .center, spacing: 8) {
-                StatusDot(color: dotColor, pulse: shouldPulse)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(session.projectName)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                            .foregroundColor(session.isForgotten ? .white.opacity(0.4) : .white)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text(formatDuration(session.timeInState))
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.35))
-                    }
-
-                    HStack(spacing: 4) {
-                        Text(statusLabel)
-                            .font(.system(size: 11))
-                            .foregroundColor(labelColor)
-
-                        if session.isWorking && !session.needsConfirmation && !session.toolName.isEmpty {
-                            Text("(\(session.toolName))")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.4))
-                        }
-                    }
-                }
-
-                // Dismiss button — only visible on hover
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.45))
-                        .frame(width: 16, height: 16)
-                        .background(Color.white.opacity(isHovered ? 0.1 : 0))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .opacity(isHovered ? 1 : 0)
-                .animation(.easeInOut(duration: 0.15), value: isHovered)
+        // When editing, drop the outer Button so it doesn't intercept the space key
+        Group {
+            if isEditing {
+                cardContent
+            } else {
+                Button(action: onFocus) { cardContent }.buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(cardBackground)
+        }
+        .background(PointingHandCursor())
+        .onHover { isHovered = $0 }
+    }
+
+    @ViewBuilder private var cardContent: some View {
+        HStack(alignment: .top, spacing: 8) {
+            StatusDot(color: dotColor, pulse: shouldPulse)
+                .padding(.top, 5)
+
+            // Left column: name/TextField + status
+            VStack(alignment: .leading, spacing: 2) {
+                if isEditing {
+                    TextField("", text: Binding(
+                        get: { editText },
+                        set: { editText = String($0.prefix(15)) }
+                    ))
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .textFieldStyle(.plain)
+                    .focused($fieldFocused)
+                    .onSubmit { commitEdit() }
+                    .onExitCommand { cancelEdit() }
+                } else {
+                    Text(displayName)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(session.isForgotten ? .white.opacity(0.4) : .white)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 4) {
+                    Text(statusLabel)
+                        .font(.system(size: 11))
+                        .foregroundColor(labelColor)
+                    if session.isWorking && !session.needsConfirmation && !session.toolName.isEmpty {
+                        Text("(\(session.toolName))")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Right column: time on top, edit/revert button below
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatDuration(session.timeInState))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.35))
+
+                if isEditing {
+                    Button(action: revertToDefault) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(isHovered ? 0.75 : 0.3))
+                            .frame(width: 18, height: 18)
+                            .background(Color.white.opacity(isHovered ? 0.12 : 0))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(hasCustomName ? 1 : 0)
+                } else {
+                    Button(action: startEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(isHovered ? 0.75 : 0.3))
+                            .frame(width: 18, height: 18)
+                            .background(Color.white.opacity(isHovered ? 0.12 : 0))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(isHovered ? 1 : 0)
                     .animation(.easeInOut(duration: 0.15), value: isHovered)
-            )
-            .contentShape(Rectangle())
+                }
+            }
         }
-        .buttonStyle(.plain)
-        .background(PointingHandCursor())  // behind the button — NSTrackingArea for cursor, hitTest=nil so clicks pass through
-        .onHover { hovering in
-            isHovered = hovering
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(cardBackground)
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+        )
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Edit actions
+
+    private func startEdit() {
+        editText = displayName
+        isEditing = true
+        onEditStart()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            fieldFocused = true
         }
+    }
+
+    private func commitEdit() {
+        onRename(editText)
+        isEditing = false
+        onEditEnd()
+    }
+
+    private func cancelEdit() {
+        isEditing = false
+        onEditEnd()
+    }
+
+    private func revertToDefault() {
+        onRename("")   // empty → StatusStore clears the custom name
+        isEditing = false
+        onEditEnd()
     }
 
     // MARK: - Derived appearance

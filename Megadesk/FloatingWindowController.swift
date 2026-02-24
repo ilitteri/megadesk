@@ -7,6 +7,12 @@ private final class FirstMouseHostingView<Content: View>: NSHostingView<Content>
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
+/// NSPanel subclass that can become the key window, enabling TextField keyboard input
+/// without activating the application (handled separately per edit session).
+private final class EditablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 extension Notification.Name {
     static let megadeskHideWidget = Notification.Name("megadesk.hideWidget")
 }
@@ -18,7 +24,7 @@ final class FloatingWindowController: NSWindowController {
     convenience init(contentView: some View) {
         let initialCompact = UserDefaults.standard.bool(forKey: "megadesk.compact")
         let initialWidth: CGFloat = initialCompact ? 78 : 280
-        let panel = NSPanel(
+        let panel = EditablePanel(
             contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: 120),
             styleMask: [
                 .titled,

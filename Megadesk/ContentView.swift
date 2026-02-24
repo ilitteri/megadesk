@@ -1,8 +1,10 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @State private var store = StatusStore()
     @AppStorage("megadesk.compact") private var isCompact = false
+    @State private var previousApp: NSRunningApplication?
 
     var body: some View {
         VStack(spacing: 4) {
@@ -14,14 +16,19 @@ struct ContentView: View {
                         CompactSessionCardView(
                             session: session,
                             tick: store.tick,
+                            displayName: store.displayName(for: session),
                             onFocus: { store.focusTerminal(session: session) }
                         )
                     } else {
                         SessionCardView(
                             session: session,
                             tick: store.tick,
+                            displayName: store.displayName(for: session),
+                            hasCustomName: store.hasCustomName(for: session),
                             onFocus: { store.focusTerminal(session: session) },
-                            onDismiss: { store.dismiss(session: session) }
+                            onRename: { name in store.setCustomName(session: session, name: name) },
+                            onEditStart: beginEditing,
+                            onEditEnd: endEditing
                         )
                     }
                 }
@@ -46,5 +53,16 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
     }
-}
 
+    // MARK: - Edit lifecycle
+
+    private func beginEditing() {
+        previousApp = NSWorkspace.shared.frontmostApplication
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func endEditing() {
+        previousApp?.activate()
+        previousApp = nil
+    }
+}

@@ -3,6 +3,7 @@ import SwiftUI
 struct CompactSessionCardView: View {
     let session: Session
     let tick: Int
+    let displayName: String
     let onFocus: () -> Void
 
     @State private var isHovered = false
@@ -11,7 +12,7 @@ struct CompactSessionCardView: View {
         Button(action: onFocus) {
             VStack(spacing: 3) {
                 StatusDot(color: dotColor, pulse: shouldPulse)
-                Text(session.projectName.prefix(4))
+                Text(displayName.prefix(4))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(.white.opacity(0.5))
                     .lineLimit(1)

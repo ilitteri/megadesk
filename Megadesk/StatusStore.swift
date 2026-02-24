@@ -5,6 +5,7 @@ import Observation
 final class StatusStore {
     var sessions: [Session] = []
     var tick: Int = 0  // increments every second to force time re-renders
+    var customNames: [String: String] = [:]  // cwd → custom display name
 
     private let sessionsURL: URL = {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -16,6 +17,7 @@ final class StatusStore {
     private var dirFD: Int32 = -1
 
     init() {
+        loadCustomNames()
         loadSessions()
         startWatching()
         startTimer()
@@ -31,6 +33,24 @@ final class StatusStore {
         TerminalFocuser.focusiTerm2(sessionId: session.itermSessionId)
     }
 
+    func displayName(for session: Session) -> String {
+        customNames[session.cwd] ?? session.projectName
+    }
+
+    func hasCustomName(for session: Session) -> Bool {
+        customNames[session.cwd] != nil
+    }
+
+    func setCustomName(session: Session, name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty || trimmed == session.projectName {
+            customNames.removeValue(forKey: session.cwd)
+        } else {
+            customNames[session.cwd] = trimmed
+        }
+        saveCustomNames()
+    }
+
     func dismiss(session: Session) {
         // Remove immediately from UI
         sessions.removeAll { $0.id == session.id }
@@ -40,6 +60,19 @@ final class StatusStore {
     }
 
     // MARK: - Private
+
+    private func loadCustomNames() {
+        guard let data = UserDefaults.standard.data(forKey: "megadesk.customNames"),
+              let dict = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return }
+        customNames = dict
+    }
+
+    private func saveCustomNames() {
+        if let data = try? JSONEncoder().encode(customNames) {
+            UserDefaults.standard.set(data, forKey: "megadesk.customNames")
+        }
+    }
 
     func loadSessions() {
         let fm = FileManager.default
