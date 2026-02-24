@@ -136,21 +136,36 @@ final class FloatingWindowController: NSWindowController {
     var isCompact: Bool { UserDefaults.standard.bool(forKey: "megadesk.compact") }
 
     func toggleCompact() {
-        let newValue = !isCompact
-        UserDefaults.standard.set(newValue, forKey: "megadesk.compact")
         guard let panel = window else { return }
-        let width: CGFloat = newValue ? 78 : 280
-        panel.setContentSize(NSSize(width: width, height: panel.frame.height))
-        titleLabel?.stringValue = newValue ? "md" : "megadesk"
-        titleLabel?.sizeToFit()
-        if let label = titleLabel, let superview = label.superview {
-            label.frame.origin.x = (superview.bounds.width - label.frame.width) / 2
+        let newValue = !isCompact
+        // Note: UserDefaults is NOT updated here — doing so would cause SwiftUI to
+        // re-render immediately (compact layout visible during the fade-out).
+
+        let fadeOutDuration: TimeInterval = 0.12
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = fadeOutDuration
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0, 1, 1)
+            panel.animator().alphaValue = 0.0
         }
-        // Re-anchor to top-right corner after resize
-        if let screen = NSScreen.main {
-            let x = screen.visibleFrame.maxX - panel.frame.width - 16
-            let y = screen.visibleFrame.maxY - panel.frame.height - 60
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        DispatchQueue.main.asyncAfter(deadline: .now() + fadeOutDuration) {
+            panel.orderOut(nil)      // fuera del Window Server — todo lo que sigue es invisible
+            UserDefaults.standard.set(newValue, forKey: "megadesk.compact")  // SwiftUI re-render mientras invisible
+            panel.alphaValue = 1.0   // reset para show()
+
+            let width: CGFloat = newValue ? 78 : 280
+            if let screen = NSScreen.main {
+                let x = screen.visibleFrame.maxX - width - 16
+                let y = screen.visibleFrame.maxY - panel.frame.height - 60
+                panel.setFrame(NSRect(x: x, y: y, width: width, height: panel.frame.height),
+                               display: true, animate: false)
+            }
+            self.titleLabel?.stringValue = newValue ? "md" : "megadesk"
+            self.titleLabel?.sizeToFit()
+            if let label = self.titleLabel, let superview = label.superview {
+                label.frame.origin.x = (superview.bounds.width - label.frame.width) / 2
+            }
+
+            self.show()   // fade-in reutilizando la animación existente
         }
     }
 
@@ -162,12 +177,28 @@ final class FloatingWindowController: NSWindowController {
                 let y = screen.visibleFrame.maxY - window.frame.height - 60
                 window.setFrameOrigin(NSPoint(x: x, y: y))
             }
+            window.alphaValue = 0
+            window.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.12
+                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0, 0, 0.2, 1)
+                window.animator().alphaValue = 1.0
+            }
+        } else {
+            window.orderFrontRegardless()
         }
-        window.orderFrontRegardless()
     }
 
     func hide() {
-        window?.orderOut(nil)
+        guard let window = window else { return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.09
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0, 1, 1)
+            window.animator().alphaValue = 0.0
+        }, completionHandler: {
+            window.orderOut(nil)
+            window.alphaValue = 1.0
+        })
     }
 
     func toggle() {
