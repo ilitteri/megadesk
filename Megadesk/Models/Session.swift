@@ -37,7 +37,7 @@ struct Session: Identifiable, Codable {
         if provider == .codex {
             return lastEvent == "approval-requested"
         }
-        guard isWorking && lastEvent == "PreToolUse" else { return false }
+        guard isWorking && lastEvent == "PreToolUse" && toolName != "Bash" else { return false }
         return Date().timeIntervalSince1970 - lastUpdated > 4
     }
 
