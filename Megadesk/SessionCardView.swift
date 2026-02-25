@@ -98,7 +98,6 @@ struct SessionCardView: View {
     let hasCustomName: Bool
     let isFlashing: Bool
     let onFocus: () -> Bool
-    let onDismiss: () -> Void
     let onRename: (String) -> Void
     let onEditStart: () -> Void
     let onEditEnd: () -> Void
@@ -106,7 +105,6 @@ struct SessionCardView: View {
     @State private var isHovered = false
     @State private var isEditing = false
     @State private var editText = ""
-    @State private var isDying = false
 
     var body: some View {
         // When editing, drop the outer Button so it doesn't intercept the space key
@@ -177,7 +175,7 @@ struct SessionCardView: View {
                     }
                     .buttonStyle(.plain)
                     .opacity(hasCustomName ? 1 : 0)
-                } else if !isDying {
+                } else {
                     if isFlashing {
                         ZStack(alignment: .trailing) {
                             Text("⇧ ⌥ + ↑ / ↓")
@@ -245,13 +243,11 @@ struct SessionCardView: View {
     // MARK: - Focus / dismiss
 
     private func handleFocus() {
-        guard !isDying else { return }
-        if !onFocus() {
-            isDying = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                onDismiss()
-            }
-        }
+        // Focus may fail for sessions in tmux, non-iTerm2 terminals, or after
+        // detach/reattach where the iTerm2 session ID becomes stale. Don't delete
+        // the session — it may still be alive. The orphan checker handles truly
+        // dead sessions on a timer.
+        _ = onFocus()
     }
 
     // MARK: - Edit actions
@@ -289,10 +285,9 @@ struct SessionCardView: View {
         return AppSettings.shared.colorWaiting
     }
 
-    private var shouldPulse: Bool { session.isWorking && !isDying }
+    private var shouldPulse: Bool { session.isWorking }
 
     private var statusLabel: String {
-        if isDying                   { return "terminal not found · deleting..." }
         if session.needsConfirmation { return "needs confirmation" }
         if session.isWorking         { return "working" }
         if session.isForgotten       { return "forgotten" }
