@@ -175,7 +175,7 @@ final class StatusStore {
             return list.sorted {
                 let p0 = urgencyPriority($0), p1 = urgencyPriority($1)
                 if p0 != p1 { return p0 < p1 }
-                if p0 == 3 { return $0.timeInState < $1.timeInState }
+                if p0 == 4 { return $0.timeInState < $1.timeInState }
                 return $0.projectName < $1.projectName
             }
         case .byActivity:
@@ -191,9 +191,10 @@ final class StatusStore {
 
     private func urgencyPriority(_ s: Session) -> Int {
         if s.needsConfirmation { return 0 }
+        if s.isIdle { return 3 }
         if !s.isWorking && !s.isForgotten { return 1 }  // fresh waiting
         if s.isWorking { return 2 }
-        return 3  // forgotten
+        return 4  // forgotten
     }
 
     private func startWatching() {

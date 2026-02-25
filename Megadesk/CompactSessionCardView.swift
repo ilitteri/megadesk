@@ -59,6 +59,7 @@ struct CompactSessionCardView: View {
         if session.needsConfirmation { return .cyan }
         if session.isWorking         { return .green }
         if session.isForgotten       { return Color(white: 0.45) }
+        if session.isIdle            { return Color(white: 0.45) }
         return .orange
     }
 
@@ -67,6 +68,7 @@ struct CompactSessionCardView: View {
     private var cardBackground: Color {
         if isDying                                     { return Color.red.opacity(isHovered ? 0.12 : 0.06) }
         if session.needsConfirmation                   { return Color.cyan.opacity(isHovered ? 0.16 : 0.08) }
+        if session.isIdle                              { return Color.white.opacity(isHovered ? 0.07 : 0.02) }
         if !session.isWorking && !session.isForgotten  { return Color.orange.opacity(isHovered ? 0.16 : 0.08) }
         if session.isForgotten                         { return Color.white.opacity(isHovered ? 0.07 : 0.02) }
         return Color.white.opacity(isHovered ? 0.12 : 0.05)
