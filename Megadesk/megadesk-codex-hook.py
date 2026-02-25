@@ -53,15 +53,11 @@ def main():
 
     now = time.time()
 
-    # Read existing data to preserve state_since when state hasn't changed
+    # Always reset state_since — Codex events are sparse (only agent-turn-complete
+    # and approval-requested), so any event means the session is active. Unlike
+    # Claude which fires many events per turn, preserving state_since here would
+    # leave forgotten sessions stuck even after new activity.
     state_since = now
-    if session_file.exists():
-        try:
-            existing = json.loads(session_file.read_text())
-            if existing.get("state") == new_state:
-                state_since = existing.get("state_since", now)
-        except (json.JSONDecodeError, OSError):
-            pass
 
     session_data = {
         "session_id": session_id,
