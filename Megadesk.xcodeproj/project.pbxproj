@@ -25,6 +25,9 @@
 		AA000016 /* PRCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000018 /* PRCardView.swift */; };
 		AA000017 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000019 /* HelpView.swift */; };
 		AA000018 /* HelpWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000020 /* HelpWindowController.swift */; };
+		AA000019 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000021 /* AppSettings.swift */; };
+		AA000020 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000022 /* SettingsView.swift */; };
+		AA000021 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000023 /* SettingsWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +51,9 @@
 		AB000018 /* PRCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCardView.swift; sourceTree = "<group>"; };
 		AB000019 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		AB000020 /* HelpWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpWindowController.swift; sourceTree = "<group>"; };
+		AB000021 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		AB000022 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AB000023 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +85,9 @@
 				AB000016 /* OnboardingWindowController.swift */,
 				AB000019 /* HelpView.swift */,
 				AB000020 /* HelpWindowController.swift */,
+				AB000021 /* AppSettings.swift */,
+				AB000022 /* SettingsView.swift */,
+				AB000023 /* SettingsWindowController.swift */,
 				AD000002 /* Models */,
 				AD000003 /* Services */,
 				AB000009 /* Info.plist */,
@@ -223,6 +232,9 @@
 				AA000016 /* PRCardView.swift in Sources */,
 				AA000017 /* HelpView.swift in Sources */,
 				AA000018 /* HelpWindowController.swift in Sources */,
+				AA000019 /* AppSettings.swift in Sources */,
+				AA000020 /* SettingsView.swift in Sources */,
+				AA000021 /* SettingsWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
