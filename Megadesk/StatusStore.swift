@@ -30,6 +30,9 @@ final class StatusStore {
     private var lastCycleIndex: Int? = nil
     private let startupTime = Date()
 
+    // kqueue-based process watchers: itermSessionId → DispatchSourceProcess
+    private var processSources: [String: DispatchSourceProcess] = [:]
+
     init() {
         loadCustomNames()
         loadSessions()
@@ -62,6 +65,7 @@ final class StatusStore {
         if let obs = focusSessionObserver { NotificationCenter.default.removeObserver(obs) }
         if let obs = cycleSessionObserver  { NotificationCenter.default.removeObserver(obs) }
         flashTimer?.invalidate()
+        processSources.values.forEach { $0.cancel() }
     }
 
     @discardableResult
@@ -162,6 +166,7 @@ final class StatusStore {
         let deduped = Array(seen.values)
 
         sessions = sorted(deduped)
+        updateProcessWatchers()
     }
 
     func sorted(_ list: [Session]) -> [Session] {
@@ -220,10 +225,6 @@ final class StatusStore {
             // Reload every tick as a fallback — small JSON files, negligible cost.
             // The file watcher handles instant updates; this catches any missed events.
             self?.loadSessions()
-            // Every 5 seconds, remove cards whose Claude process is no longer running.
-            if (self?.tick ?? 0) % 5 == 0 {
-                self?.checkDeadProcesses()
-            }
             // Every 10 seconds, ask iTerm2 which tabs are still alive and remove orphaned cards.
             if (self?.tick ?? 0) % 10 == 0 {
                 self?.checkOrphanedSessions()
@@ -249,15 +250,41 @@ final class StatusStore {
         }
     }
 
-    /// Removes session cards whose Claude process is no longer running.
-    /// Uses kill(pid, 0) — zero-signal probe that returns false if the process is gone.
-    private func checkDeadProcesses() {
+    /// Registers kqueue watchers for any new sessions that have a claudePid,
+    /// and cancels watchers for sessions that are no longer in the list.
+    /// When a watched process exits, the card is removed instantly via kqueue notification.
+    private func updateProcessWatchers() {
+        let activeIds = Set(sessions.compactMap { $0.claudePid != nil ? $0.itermSessionId : nil })
+
+        // Cancel watchers for sessions no longer loaded
+        for id in Set(processSources.keys).subtracting(activeIds) {
+            processSources[id]?.cancel()
+            processSources.removeValue(forKey: id)
+        }
+
+        // Register watchers for new sessions
         for session in sessions {
-            guard let pid = session.claudePid else { continue }
-            let alive = kill(pid_t(pid), 0) == 0 || errno == EPERM
-            if !alive {
+            guard let pid = session.claudePid,
+                  processSources[session.itermSessionId] == nil else { continue }
+
+            // If already dead, remove immediately
+            guard kill(pid_t(pid), 0) == 0 || errno == EPERM else {
                 removeSessionFiles(withItermId: session.itermSessionId)
+                continue
             }
+
+            let itermId = session.itermSessionId
+            let source = DispatchSource.makeProcessSource(
+                identifier: pid_t(pid),
+                eventMask: .exit,
+                queue: .main
+            )
+            source.setEventHandler { [weak self] in
+                self?.processSources.removeValue(forKey: itermId)
+                self?.removeSessionFiles(withItermId: itermId)
+            }
+            source.resume()
+            processSources[itermId] = source
         }
     }
 
