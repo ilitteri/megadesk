@@ -34,9 +34,9 @@ struct Session: Identifiable, Codable {
         return Date().timeIntervalSince1970 - lastUpdated > 4
     }
 
-    /// Session has been in "waiting" state for >5 minutes — effectively idle.
+    /// Session has been in "waiting" state for longer than the configured threshold — effectively idle.
     var isForgotten: Bool {
-        !isWorking && timeInState > 300
+        !isWorking && timeInState > TimeInterval(AppSettings.shared.forgottenMinutes * 60)
     }
 
     enum CodingKeys: String, CodingKey {
