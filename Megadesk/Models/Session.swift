@@ -47,8 +47,13 @@ struct Session: Identifiable, Codable {
     }
 
     /// Session has been in "waiting" state for longer than the configured threshold — effectively idle.
+    /// Codex events are sparse (only at turn boundaries), so use lastUpdated with
+    /// a longer threshold — during active work no events fire.
     var isForgotten: Bool {
-        !isWorking && timeInState > TimeInterval(AppSettings.shared.forgottenMinutes * 60)
+        if provider == .codex {
+            return Date().timeIntervalSince1970 - lastUpdated > 1800
+        }
+        return !isWorking && timeInState > TimeInterval(AppSettings.shared.forgottenMinutes * 60)
     }
 
     // MARK: - Coding
