@@ -68,7 +68,9 @@ struct TerminalFocuser {
             finalCommand = command
         }
 
-        let escaped = finalCommand.replacingOccurrences(of: "\"", with: "\\\"")
+        let escaped = finalCommand
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
         let script = """
         tell application "iTerm2"
             tell current window
