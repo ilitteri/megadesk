@@ -43,6 +43,10 @@ final class AppSettings {
     var hexPRMerged:  String
     var hexPRClosed:  String
 
+    // MARK: - Issue state colors
+    var hexIssueOpen:   String
+    var hexIssueClosed: String
+
     // MARK: - Computed Color accessors
     var colorWorking:      Color { Color(hex: hexWorking)      ?? .green }
     var colorConfirmation: Color { Color(hex: hexConfirmation) ?? .cyan  }
@@ -54,6 +58,9 @@ final class AppSettings {
     var colorPRFailing: Color { Color(hex: hexPRFailing) ?? .red }
     var colorPRMerged:  Color { Color(hex: hexPRMerged)  ?? .cyan }
     var colorPRClosed:  Color { Color(hex: hexPRClosed)  ?? Color(white: 0.45) }
+
+    var colorIssueOpen:   Color { Color(hex: hexIssueOpen)   ?? .green }
+    var colorIssueClosed: Color { Color(hex: hexIssueClosed)  ?? Color(white: 0.45) }
 
     private init() {
         let ud = UserDefaults.standard
@@ -69,6 +76,8 @@ final class AppSettings {
         hexPRFailing     = ud.string(forKey: "megadesk.color.pr.failing")   ?? "#FF3B30"
         hexPRMerged      = ud.string(forKey: "megadesk.color.pr.merged")    ?? "#5AC8FA"
         hexPRClosed      = ud.string(forKey: "megadesk.color.pr.closed")    ?? "#737373"
+        hexIssueOpen     = ud.string(forKey: "megadesk.color.issue.open")   ?? "#34C759"
+        hexIssueClosed   = ud.string(forKey: "megadesk.color.issue.closed") ?? "#737373"
         repoBasePath     = ud.string(forKey: "megadesk.repoBasePath")       ?? "~/Repositories"
         cloneBasePath    = ud.string(forKey: "megadesk.cloneBasePath")      ?? "~/.megadesk/repos"
     }
@@ -87,6 +96,8 @@ final class AppSettings {
         ud.set(hexPRFailing,        forKey: "megadesk.color.pr.failing")
         ud.set(hexPRMerged,         forKey: "megadesk.color.pr.merged")
         ud.set(hexPRClosed,         forKey: "megadesk.color.pr.closed")
+        ud.set(hexIssueOpen,        forKey: "megadesk.color.issue.open")
+        ud.set(hexIssueClosed,      forKey: "megadesk.color.issue.closed")
         ud.set(repoBasePath,        forKey: "megadesk.repoBasePath")
         ud.set(cloneBasePath,       forKey: "megadesk.cloneBasePath")
     }
@@ -104,6 +115,8 @@ final class AppSettings {
         hexPRFailing     = "#FF3B30"
         hexPRMerged      = "#5AC8FA"
         hexPRClosed      = "#737373"
+        hexIssueOpen     = "#34C759"
+        hexIssueClosed   = "#737373"
         repoBasePath     = "~/Repositories"
         cloneBasePath    = "~/.megadesk/repos"
         save()

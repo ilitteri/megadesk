@@ -66,6 +66,11 @@ struct SettingsView: View {
                     colorRow("Merged",     hex: $settings.hexPRMerged)
                     colorRow("Closed",     hex: $settings.hexPRClosed)
                 }
+
+                Section("Issue States") {
+                    colorRow("Open",   hex: $settings.hexIssueOpen)
+                    colorRow("Closed", hex: $settings.hexIssueClosed)
+                }
             }
             .formStyle(.grouped)
 
