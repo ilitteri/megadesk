@@ -105,6 +105,7 @@ struct SessionCardView: View {
     @State private var isHovered = false
     @State private var isEditing = false
     @State private var editText = ""
+    @State private var isDying = false
 
     var body: some View {
         // When editing, drop the outer Button so it doesn't intercept the space key

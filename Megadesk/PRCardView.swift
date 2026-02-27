@@ -134,11 +134,14 @@ struct PRCardView: View {
                         .opacity(isHovered ? 0 : 1)
                         .animation(.easeInOut(duration: 0.15), value: isHovered)
 
-                    HStack(spacing: 2) {
-                        if let command = fixCommand(pr) {
-                            fixButton(command: command)
+                        HStack(spacing: 2) {
+                            if let command = fixCommand(pr) {
+                                fixButton(command: command)
+                            }
+                            deleteButton
                         }
-                        deleteButton
+                        .opacity(isHovered ? 1 : 0)
+                        .animation(.easeInOut(duration: 0.15), value: isHovered)
                     }
                 }
             }
