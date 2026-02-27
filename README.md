@@ -24,8 +24,6 @@ Megadesk is a macOS menu-bar widget that shows all your active Claude Code sessi
 
 ---
 
----
-
 ## Requirements
 
 - macOS 14 or later
