@@ -7,6 +7,27 @@ private final class FirstMouseHostingView<Content: View>: NSHostingView<Content>
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
+/// NSScrollView that accepts the first mouse-down so scrolling works without activating the window.
+private final class FirstMouseScrollView: NSScrollView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// NSClipView that accepts the first mouse-down so clicks inside the scroll area work immediately.
+private final class FirstMouseClipView: NSClipView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// Container view that clips its children to a rounded rectangle.
+private final class RoundedClipView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = 12
+        layer?.masksToBounds = true
+    }
+    required init?(coder: NSCoder) { fatalError() }
+}
+
 /// NSPanel subclass that can become the key window, enabling TextField keyboard input
 /// without activating the application (handled separately per edit session).
 private final class EditablePanel: NSPanel {
@@ -24,6 +45,8 @@ final class FloatingWindowController: NSWindowController {
     private var titleLabel: NSTextField?
     private var suppressPositionSave = false
     private var isHovered = false
+    private var hostingView: NSView?
+    private var heightObservation: NSKeyValueObservation?
 
     convenience init(contentView: some View) {
         let initialCompact = UserDefaults.standard.bool(forKey: "megadesk.compact")
@@ -51,17 +74,45 @@ final class FloatingWindowController: NSWindowController {
         panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        // Use FirstMouseHostingView so taps fire on the first click
-        panel.contentView = FirstMouseHostingView(rootView:
+        // Build the scroll view hierarchy:
+        // RoundedClipView → FirstMouseScrollView → FirstMouseClipView → FirstMouseHostingView
+        let hosting = FirstMouseHostingView(rootView:
             contentView
                 .background(Color(nsColor: NSColor(white: 0.1, alpha: 0.0)))
         )
+        hosting.translatesAutoresizingMaskIntoConstraints = false
 
-        if let corner = panel.contentView {
-            corner.wantsLayer = true
-            corner.layer?.cornerRadius = 12
-            corner.layer?.masksToBounds = true
-        }
+        let clipView = FirstMouseClipView()
+        clipView.drawsBackground = false
+
+        let scrollView = FirstMouseScrollView()
+        scrollView.contentView = clipView
+        scrollView.documentView = hosting
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.scrollerStyle = .overlay
+        scrollView.autohidesScrollers = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Pin hosting view width to clip view (height stays unconstrained → sizes to content)
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: clipView.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: clipView.trailingAnchor),
+        ])
+
+        let roundedContainer = RoundedClipView(frame: .zero)
+        roundedContainer.translatesAutoresizingMaskIntoConstraints = false
+        roundedContainer.addSubview(scrollView)
+        NSLayoutConstraint.activate([
+            scrollView.leadingAnchor.constraint(equalTo: roundedContainer.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: roundedContainer.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: roundedContainer.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: roundedContainer.bottomAnchor),
+        ])
+
+        panel.contentView = roundedContainer
 
         // Hide system traffic-light buttons
         panel.standardWindowButton(.closeButton)?.isHidden = true
@@ -69,6 +120,12 @@ final class FloatingWindowController: NSWindowController {
         panel.standardWindowButton(.zoomButton)?.isHidden = true
 
         self.init(window: panel)
+        self.hostingView = hosting
+
+        // Observe hosting view frame changes to adjust panel height when content changes
+        heightObservation = hosting.observe(\.frame, options: [.new]) { [weak self] _, _ in
+            self?.adjustPanelHeight()
+        }
 
         // Tracking area for hover-based opacity
         if let cv = panel.contentView {
@@ -97,6 +154,14 @@ final class FloatingWindowController: NSWindowController {
             queue: .main
         ) { [weak self] _ in
             self?.handleWindowMove()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.adjustPanelHeight()
         }
     }
 
@@ -205,6 +270,39 @@ final class FloatingWindowController: NSWindowController {
         window.alphaValue = AppSettings.shared.idleOpacity
     }
 
+    // MARK: - Height management
+
+    private func adjustPanelHeight() {
+        guard let panel = window, let hosting = hostingView else { return }
+        let contentHeight = hosting.fittingSize.height
+        guard contentHeight > 0 else { return }
+
+        // Compute maximum available height from panel's top-left to screen bottom
+        let screenMax: CGFloat
+        if let visibleFrame = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+            let panelTopY = panel.frame.origin.y + panel.frame.height
+            let margin: CGFloat = 8
+            screenMax = panelTopY - visibleFrame.origin.y - margin
+        } else {
+            screenMax = 800
+        }
+
+        let targetHeight = max(120, min(contentHeight, screenMax))
+
+        // Preserve top-left position while changing height
+        let topLeft = NSPoint(x: panel.frame.origin.x, y: panel.frame.origin.y + panel.frame.height)
+        let newFrame = NSRect(
+            x: topLeft.x,
+            y: topLeft.y - targetHeight,
+            width: panel.frame.width,
+            height: targetHeight
+        )
+
+        suppressPositionSave = true
+        panel.setFrame(newFrame, display: true, animate: false)
+        suppressPositionSave = false
+    }
+
     // MARK: - State
 
     var isWidgetVisible: Bool { window?.isVisible ?? false }
@@ -243,6 +341,7 @@ final class FloatingWindowController: NSWindowController {
                 label.frame.origin.x = (superview.bounds.width - label.frame.width) / 2
             }
 
+            self.adjustPanelHeight()
             self.show()   // fade-in reutilizando la animación existente
         }
     }
@@ -266,6 +365,7 @@ final class FloatingWindowController: NSWindowController {
             suppressPositionSave = false
             window.alphaValue = 0
             window.orderFrontRegardless()
+            adjustPanelHeight()
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.12
                 ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0, 0, 0.2, 1)
