@@ -168,15 +168,26 @@ struct PRCardView: View {
         else if pr.isBehindMain { prompt = "Make PR \(trackedPR.repo)#\(pr.number) up-to-date and push" }
         else { return nil }
 
+        let headOwner = pr.headRepositoryOwner.login
         let repoParts = trackedPR.repo.components(separatedBy: "/")
         guard repoParts.count == 2 else { return nil }
-        let owner = repoParts[0]
         let repo = repoParts[1]
         let branch = pr.headRefName
         let wt = "fix-\(pr.number)"
+        let repoBase = AppSettings.shared.repoBasePath
+        let cloneBase = AppSettings.shared.cloneBasePath
 
         return """
-        REPO="$HOME/Repositories/\(owner)/\(repo)" && \
+        REPO_BASE="\(repoBase)"; \
+        REPO="${REPO_BASE/#\\~/$HOME}/\(headOwner)/\(repo)"; \
+        if [ ! -d "$REPO/.git" ]; then \
+          CLONE_BASE="\(cloneBase)"; \
+          REPO="${CLONE_BASE/#\\~/$HOME}/\(headOwner)/\(repo)"; \
+          if [ ! -d "$REPO/.git" ]; then \
+            echo "Cloning \(headOwner)/\(repo)..."; \
+            gh repo clone "\(headOwner)/\(repo)" "$REPO" -- --filter=blob:none || exit 1; \
+          fi; \
+        fi; \
         cd "$REPO" && \
         git fetch origin "\(branch)" && \
         git worktree remove ".worktrees/\(wt)" 2>/dev/null; \
