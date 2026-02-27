@@ -13,7 +13,9 @@ private final class FirstMouseScrollView: NSScrollView {
 }
 
 /// NSClipView that accepts the first mouse-down so clicks inside the scroll area work immediately.
+/// Flipped so the document origin is top-left (sessions appear first, scroll down to PRs).
 private final class FirstMouseClipView: NSClipView {
+    override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
@@ -46,6 +48,7 @@ final class FloatingWindowController: NSWindowController {
     private var suppressPositionSave = false
     private var isHovered = false
     private var hostingView: NSView?
+    private var scrollView: NSScrollView?
     private var heightObservation: NSKeyValueObservation?
 
     convenience init(contentView: some View) {
@@ -121,6 +124,7 @@ final class FloatingWindowController: NSWindowController {
 
         self.init(window: panel)
         self.hostingView = hosting
+        self.scrollView = scrollView
 
         // Observe hosting view frame changes to adjust panel height when content changes
         heightObservation = hosting.observe(\.frame, options: [.new]) { [weak self] _, _ in
@@ -301,6 +305,12 @@ final class FloatingWindowController: NSWindowController {
         suppressPositionSave = true
         panel.setFrame(newFrame, display: true, animate: false)
         suppressPositionSave = false
+
+        // Ensure content starts from the top (sessions first)
+        if let clipView = scrollView?.contentView {
+            clipView.scroll(to: .zero)
+            scrollView?.reflectScrolledClipView(clipView)
+        }
     }
 
     // MARK: - State
